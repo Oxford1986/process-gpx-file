@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        const tbl = document.createElement("table");
+        const tblBody = document.createElement("tbody");
+
+        fetch("Evening_Run.gpx").then(response => {
+            return response.text();
+        }).then(xmlString => {
+            const xmlDocument = new DOMParser().parseFromString(xmlString, 'text/xml');
+            const trkpts = xmlDocument.querySelectorAll("trkpt");
+
+            const tableHeaders = ["Distance", "Seconds","Seconds Elapsed", "Speed"];
+
+            addTableRow(tableHeaders, tblBody);
+
+            let distance = 0.0;
+            let totalTime = 0;
+            let lat1 = null;
+            let lon1 = null;
+            let lat2 = null;
+            let lon2 = null;
+            let time1 = null;
+            let time2 = null;
+
+            let x = 1;
+
+            for (const trkpt of trkpts) {
+
+                if (lat1 == null) {
+                    lat1 = trkpt.getAttribute("lat");
+                    lon1 = trkpt.getAttribute("lon");
+                    time1 = new Date(trkpt.querySelector("time").textContent);
+                } else {
+                    lat2 = trkpt.getAttribute("lat");
+                    lon2 = trkpt.getAttribute("lon");
+                    time2 = new Date(trkpt.querySelector("time").textContent);
+
+                    const d1 = haversine(lat1, lon1, lat2, lon2);
+                    
+                    const t = getTime(time1, time2);
+
+                    const s = getSpeed(d1, t);
+
+                    distance = distance + d1
+                    totalTime = totalTime + t;
+
+                    const results = [distance, t, totalTime, s]
+
+                    addTableRow(results, tblBody)
+                    
+                    lat1 = lat2;
+                    lon1 = lon2;
+                    time1 = time2;
+                }
+           }
+        })
+
+        tbl.appendChild(tblBody);
+
+        // appends <table> into <body>
+        document.body.appendChild(tbl);
+        
+        // sets the border attribute of tbl to '2'
+        tbl.setAttribute("border", "2");
+
+        const haversine = (lat1, lon1, lat2, lon2) => {
+
+            let dLat = (Math.abs(lat2 - lat1)) * (Math.PI / 180.0);
+            let dLon = (Math.abs(lon2 - lon1)) * (Math.PI / 180.0);
+
+            lat1 = (lat1) * (Math.PI / 180.0);
+            lat2 = (lat2) * (Math.PI / 180.0);
+
+            let a = Math.pow(Math.sin(dLat / 2), 2) +
+                    Math.pow(Math.sin(dLon / 2), 2) *
+                    Math.cos(lat1) *
+                    Math.cos(lat2);
+
+            let rad = 6371;
+            let c = 2 * Math.asin(Math.sqrt(a));
+            return rad * c * 1000;
+        }
+
+        const getTime = (date1, date2) => {
+            return (date2 - date1) / 1000;
+        }
+
+        const getSpeed = (distance, time) => {
+            return (distance/time) * (3600/1609.3);
+        }
+
+        const addTableRow = (rowValues, tblBody) => {
+            const row = document.createElement("tr");
+                for (value of rowValues) {
+                    const cell = document.createElement("td");
+                    const cellText = document.createTextNode(value);
+                    cell.appendChild(cellText);
+                    row.appendChild(cell);
+                }
+            tblBody.appendChild(row);
+        }
+
+    </script>
+</body>
+</html>
